@@ -4,6 +4,7 @@ import {
   BatteryMediumIcon as LuBatteryMedium,
   SignalIcon as LuSignal,
 } from "lucide-react";
+import { CurrentTime } from "./current-time";
 
 interface IphoneFrameProps {
   children: ReactNode;
@@ -11,20 +12,13 @@ interface IphoneFrameProps {
 }
 
 const IphoneFrame: FC<IphoneFrameProps> = ({ children, className = "" }) => {
-  // Get current time in format HH:MM
-  const getCurrentTime = () => {
-    const now = new Date();
-    const hours = now.getHours().toString().padStart(2, "0");
-    const minutes = now.getMinutes().toString().padStart(2, "0");
-    return `${hours}:${minutes}`;
-  };
 
   return (
     // The main phone body
     <div
       className={`
         relative mx-auto
-        border-[10px] border-gray-900 bg-[#212121]
+        border-10 border-gray-900 bg-[#212121]
         dark:border-gray-200 dark:bg-gray-100
         rounded-[44px]
         shadow-xl
@@ -39,7 +33,7 @@ const IphoneFrame: FC<IphoneFrameProps> = ({ children, className = "" }) => {
         {/* Left side - Time */}
         <div className="text-xs font-semibold flex items-center">
           <LuSignal className="w-3.5 h-3.5 mr-1" />
-          {getCurrentTime()}
+          <CurrentTime />
         </div>
 
         {/* Notch (center) */}

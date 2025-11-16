@@ -136,10 +136,10 @@ export function InboxSidebar({ user, conversations = [], onConversationSelect, .
     ? conversations.filter(c => c.unread)
     : conversations
 
-  const userData = user || {
-    name: "SellerBoost User",
-    email: "user@sellerboost.com",
-    avatar: "/avatars/default.jpg",
+  const userData = {
+    name: user?.name || "SellerBoost User",
+    email: user?.email || "user@sellerboost.com",
+    avatar: user?.avatar || "/avatars/default.jpg",
   };
 
   return (

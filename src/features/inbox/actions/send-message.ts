@@ -39,6 +39,7 @@ export async function sendMessageAction(
     }
 
     const userId = session.user.id
+    const userIdInt = parseInt(userId, 10)
 
     // Get the Facebook Page and verify ownership
     const [page] = await db
@@ -47,7 +48,7 @@ export async function sendMessageAction(
       .where(
         and(
           eq(facebookPages.pageId, input.pageId),
-          eq(facebookPages.userId, userId)
+          eq(facebookPages.userId, userIdInt)
         )
       )
       .limit(1)
@@ -77,7 +78,7 @@ export async function sendMessageAction(
 
     // Store the sent message in database
     await db.insert(messages).values({
-      userId: userId,
+      userId: userIdInt,
       facebookPageId: page.id,
       pageId: input.pageId,
       messageId: result.messageId!,

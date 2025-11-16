@@ -124,7 +124,9 @@ export const auth = betterAuth({
     "http://localhost:3007",
     "http://localhost:3008",
     "http://localhost:3009",
-    "https://6ecb64e5d3a5.ngrok-free.app",
+    "https://3edcf902cc56.ngrok-free.app",
+    "https://sellerboost.com",
+    "https://sellerboost.vercel.app"
   ],
   baseURL: process.env.BETTER_AUTH_URL || "http://localhost:3000",
   secret: process.env.BETTER_AUTH_SECRET as string,

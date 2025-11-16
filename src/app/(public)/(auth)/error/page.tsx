@@ -4,9 +4,9 @@ import { LogoIcon } from '@/components/logo'
 import { Button } from '@/components/ui/button'
 import Link from 'next/link'
 import { useSearchParams, useRouter } from 'next/navigation'
-import { useEffect } from 'react'
+import { useEffect, Suspense } from 'react'
 
-export default function AuthErrorPage() {
+function AuthErrorContent() {
   const searchParams = useSearchParams()
   const router = useRouter()
   const error = searchParams.get('error')
@@ -90,6 +90,27 @@ export default function AuthErrorPage() {
         </div>
       </div>
     </section>
+  )
+}
+
+export default function AuthErrorPage() {
+  return (
+    <Suspense fallback={
+      <section className="flex min-h-screen bg-zinc-50 px-4 py-16 md:py-32 dark:bg-transparent">
+        <div className="bg-card m-auto h-fit w-full max-w-sm rounded-[calc(var(--radius)+.125rem)] border p-0.5 shadow-md dark:[--color-muted:var(--color-zinc-900)]">
+          <div className="p-8 pb-6">
+            <div>
+              <Link href="/" aria-label="go home">
+                <LogoIcon />
+              </Link>
+              <h1 className="mb-1 mt-4 text-xl font-semibold">Loading...</h1>
+            </div>
+          </div>
+        </div>
+      </section>
+    }>
+      <AuthErrorContent />
+    </Suspense>
   )
 }
 

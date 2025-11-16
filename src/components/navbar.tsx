@@ -75,12 +75,12 @@ export const Navbar = () => {
               <ul className="flex gap-8 text-sm">
                 {menuItems.map((item, index) => (
                   <li key={index}>
-                    <Link
+                    <a
                       href={item.href}
                       className="text-muted-foreground hover:text-accent-foreground block duration-150"
                     >
                       <span>{item.name}</span>
-                    </Link>
+                    </a>
                   </li>
                 ))}
               </ul>
@@ -96,13 +96,13 @@ export const Navbar = () => {
                 <ul className="space-y-6 text-base">
                   {menuItems.map((item, index) => (
                     <li key={index}>
-                      <Link
+                      <a
                         href={item.href}
                         className="text-muted-foreground hover:text-accent-foreground block duration-150"
                         onClick={() => setMenuState(false)}
                       >
                         <span>{item.name}</span>
-                      </Link>
+                      </a>
                     </li>
                   ))}
                 </ul>
