@@ -60,13 +60,14 @@ export const auth = betterAuth({
     facebook: {
       clientId: process.env.FACEBOOK_CLIENT_ID as string,
       clientSecret: process.env.FACEBOOK_CLIENT_SECRET as string,
-      scope: [
-        "email", // User&apos;s email
-        "pages_messaging", // Send/receive messages
-        "pages_manage_engagement", // Manage inbox
-        "pages_read_engagement", // Read engagement data
-        "pages_manage_metadata", // REQUIRED for webhooks!
-      ],
+      // scope: [
+      //   "email", // User's email
+      //   "pages_messaging", // Send/receive messages
+      //   "pages_manage_engagement", // Manage inbox
+      //   "pages_read_engagement", // Read engagement data
+      //   "pages_manage_metadata", // REQUIRED for webhooks!
+      // ],
+      configId: "4613696038857789",
       onError: (error: Error, request: { url: string; method: string }) => {
         console.error("Facebook OAuth Error:", {
           error,
