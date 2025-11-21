@@ -148,3 +148,10 @@
 .animate-fade-in {
   animation: fade-in 0.3s ease-out 0.4s forwards;
 }
+
+/* Override Sheet width on mobile to be full-width */
+[data-mobile="true"][data-slot="sidebar"] {
+  width: 100% !important;
+  max-width: 100% !important;
+}
+

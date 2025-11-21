@@ -1,20 +1,21 @@
 "use client"
 
-import * as React from "react"
 import {
-  Inbox,
-  ShoppingCart,
-  Receipt,
-  Package,
-  Users,
-  MessageSquare,
-  Settings,
   BarChart3,
-  FileText,
-  CreditCard
+  CreditCard,
+  Inbox,
+  MessageSquare,
+  Package,
+  Receipt,
+  Settings,
+  ShoppingCart,
+  Users
 } from "lucide-react"
+import * as React from "react"
 
 import { NavUser } from "@/components/nav-user"
+import { Badge } from "@/components/ui/badge"
+import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty"
 import { Label } from "@/components/ui/label"
 import {
   Sidebar,
@@ -27,12 +28,11 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
+  SidebarTrigger,
   useSidebar,
 } from "@/components/ui/sidebar"
 import { Switch } from "@/components/ui/switch"
-import { Badge } from "@/components/ui/badge"
-import { Logo } from "@/components/logo"
-import { Empty, EmptyHeader, EmptyTitle, EmptyDescription, EmptyMedia } from "@/components/ui/empty"
+import { cn } from "@/lib/utils"
 
 // Navigation items for SellerBoost
 const navMain = [
@@ -72,13 +72,6 @@ const navMain = [
     disabled: true, // For future implementation
   },
   {
-    title: "Products",
-    url: "/dashboard/products",
-    icon: Package,
-    isActive: false,
-    disabled: true, // For future implementation
-  },
-  {
     title: "Customers",
     url: "/dashboard/customers",
     icon: Users,
@@ -89,13 +82,6 @@ const navMain = [
     title: "Analytics",
     url: "/dashboard/analytics",
     icon: BarChart3,
-    isActive: false,
-    disabled: true, // For future implementation
-  },
-  {
-    title: "Reports",
-    url: "/dashboard/reports",
-    icon: FileText,
     isActive: false,
     disabled: true, // For future implementation
   },
@@ -130,7 +116,15 @@ interface InboxSidebarProps extends React.ComponentProps<typeof Sidebar> {
 export function InboxSidebar({ user, conversations = [], onConversationSelect, ...props }: InboxSidebarProps) {
   const [activeItem, setActiveItem] = React.useState(navMain[0])
   const [showUnreadOnly, setShowUnreadOnly] = React.useState(false)
-  const { setOpen } = useSidebar()
+  const { setOpen, setOpenMobile, isMobile } = useSidebar()
+
+  const handleCloseSidebar = () => {
+    if (isMobile) {
+      setOpenMobile(false)
+    } else {
+      setOpen(false)
+    }
+  }
 
   const filteredConversations = showUnreadOnly
     ? conversations.filter(c => c.unread)
@@ -145,18 +139,23 @@ export function InboxSidebar({ user, conversations = [], onConversationSelect, .
   return (
     <Sidebar
       collapsible="icon"
-      className="overflow-hidden [&>div]:flex-row"
+      className={cn(
+        "overflow-hidden",
+        "[&>div[data-slot='sidebar-container']]:md:w-full",
+        "[&>div[data-slot='sidebar-container']]:md:max-w-[calc(var(--sidebar-width-icon)+var(--sidebar-width))]",
+        "[&>div[data-slot='sidebar-container']]:md:left-0",
+      )}
       {...props}
     >
       {/* Main Navigation Sidebar */}
       <Sidebar
         collapsible="none"
-        className="!w-[calc(var(--sidebar-width-icon)+1px)] border-r"
+        className="w-[calc(var(--sidebar-width-icon)+1px)]! border-r"
       >
         <SidebarHeader>
           <SidebarMenu>
             <SidebarMenuItem>
-              <SidebarMenuButton size="lg" asChild className="md:h-8 md:p-0">
+              <SidebarMenuButton size="lg" asChild className="h-8 p-0">
                 <a href="/dashboard">
                   <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
                     <Package className="size-4" />
@@ -172,7 +171,7 @@ export function InboxSidebar({ user, conversations = [], onConversationSelect, .
         </SidebarHeader>
         <SidebarContent>
           <SidebarGroup>
-            <SidebarGroupContent className="px-1.5 md:px-0">
+            <SidebarGroupContent className="px-0.5 md:px-0">
               <SidebarMenu>
                 {navMain.map((item) => (
                   <SidebarMenuItem key={item.title}>
@@ -188,7 +187,7 @@ export function InboxSidebar({ user, conversations = [], onConversationSelect, .
                         }
                       }}
                       isActive={activeItem?.title === item.title}
-                      className="px-2.5 md:px-2"
+                      className="px-1.5 md:px-2"
                       disabled={item.disabled}
                     >
                       <item.icon />
@@ -214,11 +213,19 @@ export function InboxSidebar({ user, conversations = [], onConversationSelect, .
       </Sidebar>
 
       {/* Conversations List Sidebar */}
-      <Sidebar collapsible="none" className="hidden flex-1 md:flex">
+      <Sidebar 
+        collapsible="none" 
+        className="flex flex-1"
+      >
         <SidebarHeader className="gap-3.5 border-b p-4">
           <div className="flex w-full items-center justify-between">
-            <div className="text-base font-medium text-foreground">
-              {activeItem?.title}
+            <div className="flex items-center gap-2">
+              {isMobile && (
+                <SidebarTrigger className="-ml-1" />
+              )}
+              <div className="text-base font-medium text-foreground">
+                {activeItem?.title}
+              </div>
             </div>
             <Label className="flex items-center gap-2 text-sm">
               <span>Unread only</span>
@@ -252,7 +259,10 @@ export function InboxSidebar({ user, conversations = [], onConversationSelect, .
                 filteredConversations.map((conversation) => (
                   <button
                     key={conversation.id}
-                    onClick={() => onConversationSelect?.(conversation)}
+                    onClick={() => {
+                      onConversationSelect?.(conversation)
+                      handleCloseSidebar()
+                    }}
                     className="flex w-full flex-col items-start gap-2 border-b p-4 text-left text-sm leading-tight transition-colors last:border-b-0 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
                   >
                     <div className="flex w-full items-center gap-2">
