@@ -76,6 +76,19 @@ export const facebookPages = pgTable("facebook_pages", {
   pageIdIdx: index("idx_page_id").on(table.pageId),
 }));
 
+// Facebook attachment type definition
+export type FacebookAttachment = {
+  type: "image" | "video" | "audio" | "file" | "fallback";
+  payload: {
+    url?: string;
+    sticker_id?: number;
+    coordinates?: {
+      lat: number;
+      long: number;
+    };
+  };
+};
+
 // Messages (both incoming and outgoing)
 export const messages = pgTable("messages", {
   id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
@@ -93,7 +106,7 @@ export const messages = pgTable("messages", {
   recipientId: text("recipientId").notNull(), // Facebook User ID (PSID) or Page ID
   direction: text("direction").notNull(), // 'incoming' or 'outgoing'
   messageText: text("messageText"),
-  attachments: jsonb("attachments").$type<any[]>(), // Store attachment data
+  attachments: jsonb("attachments").$type<FacebookAttachment[]>(), // Facebook attachment data
   timestamp: timestamp("timestamp", { withTimezone: true }).notNull(),
   status: text("status").default("sent"), // sent, delivered, read, failed
   isEcho: boolean("isEcho").default(false), // True for echo messages (sent from Page)
@@ -120,6 +133,7 @@ export const conversations = pgTable("conversations", {
   userProfilePic: text("userProfilePic"),
   lastMessageAt: timestamp("lastMessageAt", { withTimezone: true }).notNull(),
   lastMessageText: text("lastMessageText"), // Cache last message for quick display
+  lastMessageDirection: text("lastMessageDirection"), // 'incoming' or 'outgoing' - direction of last message
   unreadCount: integer("unreadCount").default(0),
   status: text("status").default("active"), // active, archived, spam
   createdAt: timestamp("createdAt", { withTimezone: true }).notNull().defaultNow(),
