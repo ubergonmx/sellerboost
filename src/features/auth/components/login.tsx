@@ -21,10 +21,8 @@ import { useForm, Controller } from 'react-hook-form'
 import { toast } from 'sonner'
 import Link from 'next/link'
 import { signInWithFacebook, signInWithGoogle } from '@/lib/auth/client'
-import { useRouter } from 'next/navigation'
 
 export default function LoginPage() {
-  const router = useRouter()
   const form = useForm<LoginFormInput>({
     resolver: zodResolver(loginSchema),
     defaultValues: {

@@ -5,7 +5,7 @@ import { db } from "@/lib/db";
 import * as schema from "@/lib/db/schema";
 import { nextCookies } from "better-auth/next-js";
 import { getPages, subscribePageToWebhook } from "./facebook";
-import { createFacebookPage } from "@/dal/facebook";
+import { upsertFacebookPage } from "@/dal/facebook";
 
 export const auth = betterAuth({
   database: drizzleAdapter(db, {
@@ -27,7 +27,7 @@ export const auth = betterAuth({
   hooks: {
     after: createAuthMiddleware(async (ctx) => {
       // Run after sign-in/sign-up with Facebook
-      if (ctx.path.includes("facebook")) {
+      if (ctx.path.includes("/callback/") && ctx.params.id === "facebook") {
         const session = ctx.context.newSession;
         
         if (session?.user?.id) {
@@ -45,7 +45,7 @@ export const auth = betterAuth({
               console.log("Facebook pages:", pages);
               for (const page of pages) {
                 console.log("Creating & subscribing to Facebook page:", page);
-                await createFacebookPage(session.user.id, page.id, page.name, page.access_token, page.picture?.data?.url, page.category, page.tasks);
+                await upsertFacebookPage(session.user.id, page.id, page.name, page.access_token, page.picture?.data?.url, page.category, page.tasks);
                 await subscribePageToWebhook(page.id, page.access_token);
               }
             }
@@ -119,15 +119,10 @@ export const auth = betterAuth({
     "http://localhost:3001",
     "http://localhost:3002",
     "http://localhost:3003",
-    "http://localhost:3004",
-    "http://localhost:3005",
-    "http://localhost:3006",
-    "http://localhost:3007",
-    "http://localhost:3008",
-    "http://localhost:3009",
-    "https://3edcf902cc56.ngrok-free.app",
+    "http://192.168.88.104:3000",
     "https://sellerboost.com",
-    "https://sellerboost.vercel.app"
+    "https://sellerboost.vercel.app",
+    "https://galilea-mouthy-veola.ngrok-free.dev"
   ],
   baseURL: process.env.BETTER_AUTH_URL || "http://localhost:3000",
   secret: process.env.BETTER_AUTH_SECRET as string,
