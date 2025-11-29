@@ -3,6 +3,8 @@ import { facebookPages, messages, conversations } from "@/lib/db/schema"
 import { eq, and } from "drizzle-orm"
 import crypto from "crypto"
 import { NextRequest } from "next/server"
+import { getUserProfile } from "@/lib/auth/facebook"
+import { decryptToken } from "@/lib/encryption"
 
 // GET: Webhook verification (one-time setup by Facebook)
 export async function GET(request: NextRequest) {
@@ -99,15 +101,36 @@ async function processMessagingEvent(page: typeof facebookPages.$inferSelect, ev
   // 1. Handle incoming message (not an echo)
   if (event.message && !event.message.is_echo) {
     const senderId = event.sender.id // Customer's PSID
+    const hasText = event.message.text && event.message.text.trim().length > 0
+    const hasAttachments = event.message.attachments && event.message.attachments.length > 0
 
-    console.log(`💬 New message from ${senderId}: ${event.message.text || "[attachment]"}`)
+    // Log message details
+    if (hasText && hasAttachments) {
+      console.log(`💬 New message from ${senderId}: ${event.message.text} [${event.message.attachments.length} attachment(s)]`)
+    } else if (hasText) {
+      console.log(`💬 New message from ${senderId}: ${event.message.text}`)
+    } else if (hasAttachments) {
+      const attachmentTypes = event.message.attachments.map((a: any) => a.type).join(", ")
+      console.log(`📎 New attachment from ${senderId}: [${attachmentTypes}]`)
+    }
 
-    // Store message in database
+    // Determine what to show in conversation preview
+    const previewText = hasText
+      ? event.message.text
+      : hasAttachments
+        ? `Sent ${event.message.attachments.length} attachment(s)`
+        : null
+
+    // Update or create conversation first to get conversation ID
+    const conversation = await upsertConversation(page, senderId, previewText, timestamp)
+
+    // Store message in database with conversationId
     await db.insert(messages).values({
       userId: page.userId,
       facebookPageId: page.id,
       pageId: page.pageId,
       messageId: event.message.mid,
+      conversationId: conversation.id,
       senderId: senderId,
       recipientId: event.recipient.id,
       direction: "incoming",
@@ -117,9 +140,6 @@ async function processMessagingEvent(page: typeof facebookPages.$inferSelect, ev
       status: "delivered",
       isEcho: false,
     })
-
-    // Update or create conversation
-    await upsertConversation(page, senderId, event.message.text, timestamp)
 
     console.log(`✓ Message saved for user ${page.userId}`)
   }
@@ -182,7 +202,8 @@ async function upsertConversation(
   page: typeof facebookPages.$inferSelect,
   userPsid: string,
   messageText: string | null,
-  timestamp: Date
+  timestamp: Date,
+  direction: "incoming" | "outgoing" = "incoming"
 ) {
   // Check if conversation exists
   const [existingConversation] = await db
@@ -198,30 +219,78 @@ async function upsertConversation(
 
   if (existingConversation) {
     // Update existing conversation
+    // Only increment unread count if message is incoming
+    const newUnreadCount = direction === "incoming"
+      ? (existingConversation.unreadCount || 0) + 1
+      : 0 // Reset to 0 when we send a message
+
+    // Fetch user profile if we don't have it yet
+    let userName = existingConversation.userName
+    let userProfilePic = existingConversation.userProfilePic
+
+    if (!userName || !userProfilePic) {
+      try {
+        const pageAccessToken = await decryptToken(page.pageAccessToken)
+        const profileResult = await getUserProfile(pageAccessToken, userPsid)
+
+        if (profileResult.success && profileResult.profile) {
+          userName = `${profileResult.profile.firstName} ${profileResult.profile.lastName}`.trim()
+          userProfilePic = profileResult.profile.profilePic
+          console.log(`✓ Fetched user profile: ${userName}`)
+        }
+      } catch (error) {
+        console.error("Error fetching user profile:", error)
+      }
+    }
+
     await db
       .update(conversations)
       .set({
         lastMessageAt: timestamp,
         lastMessageText: messageText || existingConversation.lastMessageText,
-        unreadCount: (existingConversation.unreadCount || 0) + 1,
+        lastMessageDirection: direction,
+        unreadCount: newUnreadCount,
+        userName: userName,
+        userProfilePic: userProfilePic,
         updatedAt: new Date(),
       })
       .where(eq(conversations.id, existingConversation.id))
+
+    return existingConversation
   } else {
+    // Fetch user profile for new conversation
+    let userName: string | null = null
+    let userProfilePic: string | null = null
+
+    try {
+      const pageAccessToken = await decryptToken(page.pageAccessToken)
+      const profileResult = await getUserProfile(pageAccessToken, userPsid)
+
+      if (profileResult.success && profileResult.profile) {
+        userName = `${profileResult.profile.firstName} ${profileResult.profile.lastName}`.trim()
+        userProfilePic = profileResult.profile.profilePic
+        console.log(`✓ Fetched user profile for new conversation: ${userName}`)
+      }
+    } catch (error) {
+      console.error("Error fetching user profile for new conversation:", error)
+    }
+
     // Create new conversation
-    await db.insert(conversations).values({
+    const [newConversation] = await db.insert(conversations).values({
       userId: page.userId,
       facebookPageId: page.id,
       pageId: page.pageId,
       userPsid: userPsid,
-      userName: null, // Will be updated when we fetch user profile
-      userProfilePic: null,
+      userName: userName,
+      userProfilePic: userProfilePic,
       lastMessageAt: timestamp,
       lastMessageText: messageText,
-      unreadCount: 1,
+      lastMessageDirection: direction,
+      unreadCount: direction === "incoming" ? 1 : 0,
       status: "active",
-    })
+    }).returning()
 
     console.log(`✓ New conversation created for user ${userPsid}`)
+    return newConversation
   }
 }

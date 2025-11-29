@@ -19,9 +19,16 @@ export async function subscribePageToWebhook(pageId: string, pageAccessToken: st
 
   if (!response.ok) {
     console.error(`Failed to subscribe Page ${pageId} to webhooks`)
+    console.error(response.json())
   }
 
   return response.json()
+}
+
+interface ParsedLink {
+  text: string
+  url: string
+  fullMatch: string
 }
 
 interface SendMessageOptions {
@@ -31,6 +38,32 @@ interface SendMessageOptions {
     type: "image" | "audio" | "video" | "file"
     url: string
   }
+  isOutside24HourWindow?: boolean
+}
+
+/**
+ * Parse markdown links from text in format [text](url)
+ * Returns array of parsed links and the text with links replaced by their text
+ */
+function parseMarkdownLinks(text: string): { links: ParsedLink[], cleanedText: string } {
+  const linkRegex = /\[([^\]]+)\]\(([^)]+)\)/g
+  const links: ParsedLink[] = []
+  let match
+  
+  // Find all markdown links
+  while ((match = linkRegex.exec(text)) !== null) {
+    links.push({
+      text: match[1],
+      url: match[2],
+      fullMatch: match[0]
+    })
+  }
+  
+  // Replace markdown links with just the link text (removes the URL part)
+  // This way the text appears in the message and also as a button
+  const cleanedText = text.replace(linkRegex, '$1')
+  
+  return { links, cleanedText }
 }
 
 interface SendMessageResult {
@@ -51,20 +84,56 @@ export async function sendMessage(
       message: {}
     }
 
-    // Add text if provided
-    if (options.text) {
-      messagePayload.message.text = options.text
+    // Parse markdown links from text
+    let messageText = options.text || ""
+    let markdownLinks: ParsedLink[] = []
+    
+    if (messageText) {
+      const parsed = parseMarkdownLinks(messageText)
+      markdownLinks = parsed.links
+      messageText = parsed.cleanedText.trim()
     }
 
-    // Add attachment if provided
-    if (options.attachment) {
+    // If we have markdown links, use button template
+    if (markdownLinks.length > 0) {
+      // Facebook Messenger supports up to 3 buttons per message
+      const buttons = markdownLinks.slice(0, 3).map(link => ({
+        type: "web_url",
+        url: link.url,
+        title: link.text.length > 20 ? link.text.substring(0, 17) + "..." : link.text // Max 20 chars for button title
+      }))
+
       messagePayload.message.attachment = {
-        type: options.attachment.type,
+        type: "template",
         payload: {
-          url: options.attachment.url,
-          is_reusable: true
+          template_type: "button",
+          text: messageText || "Click the button below:",
+          buttons: buttons
         }
       }
+    } else {
+      // No markdown links, use regular text message
+      if (messageText) {
+        messagePayload.message.text = messageText
+      }
+
+      // Add attachment if provided (only if no button template)
+      if (options.attachment) {
+        messagePayload.message.attachment = {
+          type: options.attachment.type,
+          payload: {
+            url: options.attachment.url,
+            is_reusable: true
+          }
+        }
+      }
+    }
+
+    // Add messaging_type and tag if outside 24-hour window
+    // Only add this if you know the message is outside the 24-hour window
+    if (options.isOutside24HourWindow) {
+      messagePayload.messaging_type = 'MESSAGE_TAG'
+      messagePayload.tag = 'ACCOUNT_UPDATE'
     }
 
     const response = await fetch(
