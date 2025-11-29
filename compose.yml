@@ -1,8 +1,6 @@
-version: '3.8'
-
 services:
   sellerboost-db:
-    image: postgres:15
+    image: postgres:15-alpine
     restart: always
     container_name: sellerboost-db
     ports:
@@ -14,11 +12,31 @@ services:
       PGDATA: /data/postgres
     volumes:
       - postgres:/data/postgres
+    tmpfs:
+      - /tmp
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U sellerboost_user"]
+      test: ["CMD-SHELL", "pg_isready -U sellerboost_user -d sellerboost"]
       interval: 10s
       timeout: 5s
       retries: 5
+    command:
+      - -c
+      - listen_addresses=*
+      - -c
+      - wal_level=logical
+
+  electric:
+    image: electricsql/electric:latest
+    restart: always
+    container_name: sellerboost-electric
+    ports:
+      - "4000:3000"
+    environment:
+      DATABASE_URL: postgresql://sellerboost_user:local-dev-password@sellerboost-db:5432/sellerboost?sslmode=disable
+      ELECTRIC_INSECURE: true
+    depends_on:
+      sellerboost-db:
+        condition: service_healthy
 
 volumes:
   postgres:
