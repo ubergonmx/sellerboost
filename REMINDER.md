@@ -23,4 +23,5 @@ https://galilea-mouthy-veola.ngrok-free.dev
 ## Facebook Developer App
 - You need to update the webhook URL and enter the secret token. 
 - Update the trusted domains in the app settings to include:
-`https://<your-url>.ngrok-free.app/api/auth/facebook`
+`https://<your-url>.ngrok-free.app/api/auth/callback/facebook`
+`https://<your-url>.ngrok-free.app/api/auth/oauth2/callback/facebook-pages`
