@@ -5,22 +5,8 @@
     {
       "idx": 0,
       "version": "7",
-      "when": 1763295883390,
-      "tag": "0000_uneven_madame_masque",
-      "breakpoints": true
-    },
-    {
-      "idx": 1,
-      "version": "7",
-      "when": 1763307153386,
-      "tag": "0001_wakeful_winter_soldier",
-      "breakpoints": true
-    },
-    {
-      "idx": 2,
-      "version": "7",
-      "when": 1763336857418,
-      "tag": "0002_unknown_quentin_quire",
+      "when": 1764510840651,
+      "tag": "0000_melted_adam_warlock",
       "breakpoints": true
     }
   ]
