@@ -26,6 +26,7 @@
     "@reui": "https://reui.io/r/{name}.json",
     "@square-ui": "https://square.lndev.me/registry/{name}.json",
     "@solaceui": "https://www.solaceui.com/r/{name}.json",
-    "@shadcnblocks": "https://shadcnblocks.com/r/{name}.json"
+    "@shadcnblocks": "https://shadcnblocks.com/r/{name}.json",
+    "@blocks": "https://blocks.so/r/{name}.json"
   }
 }
