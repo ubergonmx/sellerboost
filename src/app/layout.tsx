@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { Toaster } from "@/components/ui/sonner";
+import Script from "next/script";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -15,12 +16,21 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "SellerBoost - Your Entire Facebook Sales Process, in One Inbox",
-  description: "See all messages from all your Facebook Pages in a single, unified view. Reply faster, close more sales, and never lose a customer in the chat chaos again.",
-  keywords: ["Facebook", "sales", "inbox", "messaging", "order management", "social media"],
+  description:
+    "See all messages from all your Facebook Pages in a single, unified view. Reply faster, close more sales, and never lose a customer in the chat chaos again.",
+  keywords: [
+    "Facebook",
+    "sales",
+    "inbox",
+    "messaging",
+    "order management",
+    "social media",
+  ],
   authors: [{ name: "SellerBoost" }],
   openGraph: {
     title: "SellerBoost - Your Entire Facebook Sales Process, in One Inbox",
-    description: "See all messages from all your Facebook Pages in a single, unified view. Reply faster, close more sales, and never lose a customer in the chat chaos again.",
+    description:
+      "See all messages from all your Facebook Pages in a single, unified view. Reply faster, close more sales, and never lose a customer in the chat chaos again.",
     type: "website",
   },
 };
@@ -32,11 +42,20 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
+      <head>
+        {process.env.NODE_ENV === "development" && (
+          <Script
+            src="//unpkg.com/react-grab/dist/index.global.js"
+            crossOrigin="anonymous"
+            strategy="beforeInteractive"
+          />
+        )}
+      </head>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
         {children}
-        <Toaster />
+        <Toaster position="top-center" />
       </body>
     </html>
   );
