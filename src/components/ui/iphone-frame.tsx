@@ -1,9 +1,9 @@
-import type { FC, ReactNode } from "react";
 import {
-  WifiIcon as LuWifi,
   BatteryMediumIcon as LuBatteryMedium,
   SignalIcon as LuSignal,
+  WifiIcon as LuWifi,
 } from "lucide-react";
+import type { FC, ReactNode } from "react";
 import { CurrentTime } from "./current-time";
 
 interface IphoneFrameProps {
@@ -12,7 +12,6 @@ interface IphoneFrameProps {
 }
 
 const IphoneFrame: FC<IphoneFrameProps> = ({ children, className = "" }) => {
-
   return (
     // The main phone body
     <div

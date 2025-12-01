@@ -1,64 +1,64 @@
+import type { ReactNode } from "react";
 import {
   Controller,
-  ControllerProps,
-  FieldPath,
-  FieldValues,
-} from "react-hook-form"
+  type ControllerProps,
+  type FieldPath,
+  type FieldValues,
+} from "react-hook-form";
+import { Checkbox } from "./ui/checkbox";
 import {
   Field,
   FieldContent,
   FieldDescription,
   FieldError,
   FieldLabel,
-} from "./ui/field"
-import { Input } from "./ui/input"
-import { ReactNode } from "react"
-import { Textarea } from "./ui/textarea"
-import { Select, SelectContent, SelectTrigger, SelectValue } from "./ui/select"
-import { Checkbox } from "./ui/checkbox"
+} from "./ui/field";
+import { Input } from "./ui/input";
+import { Select, SelectContent, SelectTrigger, SelectValue } from "./ui/select";
+import { Textarea } from "./ui/textarea";
 
 type FormControlProps<
   TFieldValues extends FieldValues = FieldValues,
   TName extends FieldPath<TFieldValues> = FieldPath<TFieldValues>,
-  TTransformedValues = TFieldValues
+  TTransformedValues = TFieldValues,
 > = {
-  name: TName
-  label: ReactNode
-  description?: ReactNode
-  control: ControllerProps<TFieldValues, TName, TTransformedValues>["control"]
-}
+  name: TName;
+  label: ReactNode;
+  description?: ReactNode;
+  control: ControllerProps<TFieldValues, TName, TTransformedValues>["control"];
+};
 
 type FormBaseProps<
   TFieldValues extends FieldValues = FieldValues,
   TName extends FieldPath<TFieldValues> = FieldPath<TFieldValues>,
-  TTransformedValues = TFieldValues
+  TTransformedValues = TFieldValues,
 > = FormControlProps<TFieldValues, TName, TTransformedValues> & {
-  horizontal?: boolean
-  controlFirst?: boolean
+  horizontal?: boolean;
+  controlFirst?: boolean;
   children: (
     field: Parameters<
       ControllerProps<TFieldValues, TName, TTransformedValues>["render"]
     >[0]["field"] & {
-      "aria-invalid": boolean
-      id: string
-    }
-  ) => ReactNode
-}
+      "aria-invalid": boolean;
+      id: string;
+    },
+  ) => ReactNode;
+};
 
 type FormControlFunc<
-  ExtraProps extends Record<string, unknown> = Record<never, never>
+  ExtraProps extends Record<string, unknown> = Record<never, never>,
 > = <
   TFieldValues extends FieldValues = FieldValues,
   TName extends FieldPath<TFieldValues> = FieldPath<TFieldValues>,
-  TTransformedValues = TFieldValues
+  TTransformedValues = TFieldValues,
 >(
-  props: FormControlProps<TFieldValues, TName, TTransformedValues> & ExtraProps
-) => ReactNode
+  props: FormControlProps<TFieldValues, TName, TTransformedValues> & ExtraProps,
+) => ReactNode;
 
 function FormBase<
   TFieldValues extends FieldValues = FieldValues,
   TName extends FieldPath<TFieldValues> = FieldPath<TFieldValues>,
-  TTransformedValues = TFieldValues
+  TTransformedValues = TFieldValues,
 >({
   children,
   control,
@@ -78,15 +78,15 @@ function FormBase<
             <FieldLabel htmlFor={field.name}>{label}</FieldLabel>
             {description && <FieldDescription>{description}</FieldDescription>}
           </>
-        )
+        );
         const control = children({
           ...field,
           id: field.name,
           "aria-invalid": fieldState.invalid,
-        })
+        });
         const errorElem = fieldState.invalid && (
           <FieldError errors={[fieldState.error]} />
-        )
+        );
 
         return (
           <Field
@@ -109,19 +109,26 @@ function FormBase<
               </>
             )}
           </Field>
-        )
+        );
       }}
     />
-  )
+  );
 }
 
-export const FormInput: FormControlFunc<{ type?: string }> = ({ type, ...props }) => {
-  return <FormBase {...props}>{field => <Input {...field} type={type} />}</FormBase>
-}
+export const FormInput: FormControlFunc<{ type?: string }> = ({
+  type,
+  ...props
+}) => {
+  return (
+    <FormBase {...props}>
+      {(field) => <Input {...field} type={type} />}
+    </FormBase>
+  );
+};
 
-export const FormTextarea: FormControlFunc = props => {
-  return <FormBase {...props}>{field => <Textarea {...field} />}</FormBase>
-}
+export const FormTextarea: FormControlFunc = (props) => {
+  return <FormBase {...props}>{(field) => <Textarea {...field} />}</FormBase>;
+};
 
 export const FormSelect: FormControlFunc<{ children: ReactNode }> = ({
   children,
@@ -142,15 +149,15 @@ export const FormSelect: FormControlFunc<{ children: ReactNode }> = ({
         </Select>
       )}
     </FormBase>
-  )
-}
+  );
+};
 
-export const FormCheckbox: FormControlFunc = props => {
+export const FormCheckbox: FormControlFunc = (props) => {
   return (
     <FormBase {...props} horizontal controlFirst>
       {({ onChange, value, ...field }) => (
         <Checkbox {...field} checked={value} onCheckedChange={onChange} />
       )}
     </FormBase>
-  )
-}
+  );
+};
