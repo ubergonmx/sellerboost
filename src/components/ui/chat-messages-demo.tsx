@@ -43,7 +43,8 @@ export function ChatMessagesDemo() {
     {
       id: "m4",
       name: "User2",
-      message: "Great! Here's the checkout link: https://sellerboost.com/payment...",
+      message:
+        "Great! Here's the checkout link: https://sellerboost.com/payment...",
       delay: 1000,
     },
   ]);

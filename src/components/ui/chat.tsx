@@ -1,7 +1,7 @@
 "use client";
 
-import { type FC, useRef, useEffect, useState, useLayoutEffect } from "react";
-import { motion, AnimatePresence } from "motion/react";
+import { AnimatePresence, motion } from "motion/react";
+import { type FC, useEffect, useLayoutEffect, useRef, useState } from "react";
 import ChatMessage, { type Message } from "./chat-message";
 
 export interface User {
@@ -45,7 +45,7 @@ const Chat: FC<ChatProps> = ({ messages, currentUser, users }) => {
       // Scroll to bottom smoothly when new messages appear
       el.scrollTop = el.scrollHeight;
     }
-  }, [visibleMessages]);
+  }, []);
 
   const getUserAvatar = (name: string) =>
     users.find((u) => u.name === name)?.avatar ??
