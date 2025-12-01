@@ -1,12 +1,15 @@
-import { createAuthClient } from "better-auth/client";
+import { createAuthClient } from "better-auth/react";
+import { genericOAuthClient } from "better-auth/client/plugins";
 
-const baseURL = process.env.NEXT_PUBLIC_BETTER_AUTH_URL || "http://localhost:3000";
+const baseURL =
+  process.env.NEXT_PUBLIC_BETTER_AUTH_URL || "http://localhost:3000";
 
 export const authClient = createAuthClient({
   baseURL,
+  plugins: [genericOAuthClient()],
 });
 
-const DEFAULT_LOGIN_REDIRECT = "/dashboard";
+const DEFAULT_LOGIN_REDIRECT = "/app";
 const ERROR_CALLBACK_URL = `${baseURL}/error`;
 
 export const signInWithFacebook = async () => {
@@ -34,4 +37,3 @@ export const signOut = async () => {
     },
   });
 };
-
