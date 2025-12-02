@@ -9,7 +9,7 @@ interface Hero47Props {
   heading?: string;
   subheading?: string;
   description?: string;
-  image?: {
+  _image?: {
     src: string;
     alt: string;
   };
@@ -39,7 +39,7 @@ const Hero47 = ({
       url: "#",
     },
   },
-  image = {
+  _image = {
     src: "https://deifkwefumgah.cloudfront.net/shadcnblocks/block/placeholder-dark-7-tall.svg",
     alt: "Placeholder",
   },

@@ -1,9 +1,9 @@
 "use client";
 
-import Link from "next/link";
 import { Menu, X } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import Link from "next/link";
 import React from "react";
+import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 const menuItems = [
@@ -34,7 +34,7 @@ export const Navbar = () => {
           className={cn(
             "mx-auto mt-2 max-w-6xl px-6 transition-all duration-300 lg:px-12",
             isScrolled &&
-              "bg-background/50 max-w-4xl rounded-2xl border backdrop-blur-lg lg:px-5"
+              "bg-background/50 max-w-4xl rounded-2xl border backdrop-blur-lg lg:px-5",
           )}
         >
           <div className="relative flex flex-wrap items-center justify-between gap-6 py-3 lg:gap-0 lg:py-4">
@@ -57,7 +57,7 @@ export const Navbar = () => {
                 <Menu
                   className={cn(
                     "m-auto size-6 duration-200",
-                    menuState && "rotate-180 scale-0 opacity-0"
+                    menuState && "rotate-180 scale-0 opacity-0",
                   )}
                 />
                 <X
@@ -65,7 +65,7 @@ export const Navbar = () => {
                     "absolute inset-0 m-auto size-6 duration-200",
                     menuState
                       ? "rotate-0 scale-100 opacity-100"
-                      : "-rotate-180 scale-0 opacity-0"
+                      : "-rotate-180 scale-0 opacity-0",
                   )}
                 />
               </button>
@@ -89,7 +89,7 @@ export const Navbar = () => {
             <div
               className={cn(
                 "bg-background mb-6 hidden w-full flex-wrap items-center justify-end space-y-8 rounded-3xl border p-6 shadow-2xl shadow-zinc-300/20 md:flex-nowrap lg:m-0 lg:flex lg:w-fit lg:gap-6 lg:space-y-0 lg:border-transparent lg:bg-transparent lg:p-0 lg:shadow-none dark:shadow-none dark:lg:bg-transparent",
-                menuState && "block lg:flex"
+                menuState && "block lg:flex",
               )}
             >
               <div className="lg:hidden">
@@ -114,7 +114,7 @@ export const Navbar = () => {
                   size="sm"
                   className={cn(
                     "flex",
-                    !isScrolled ? "lg:inline-flex" : "lg:hidden"
+                    !isScrolled ? "lg:inline-flex" : "lg:hidden",
                   )}
                 >
                   <Link href="/login">
@@ -126,7 +126,7 @@ export const Navbar = () => {
                   size="sm"
                   className={cn(
                     "flex",
-                    !isScrolled ? "lg:inline-flex" : "lg:hidden"
+                    !isScrolled ? "lg:inline-flex" : "lg:hidden",
                   )}
                 >
                   <Link href="/signup">
@@ -141,4 +141,3 @@ export const Navbar = () => {
     </header>
   );
 };
-
