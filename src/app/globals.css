@@ -149,9 +149,22 @@
   animation: fade-in 0.3s ease-out 0.4s forwards;
 }
 
-/* Override Sheet width on mobile to be full-width */
-[data-mobile="true"][data-slot="sidebar"] {
-  width: 100% !important;
-  max-width: 100% !important;
+/* Spinner animation */
+@keyframes spinner {
+  0% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0.15;
+  }
 }
 
+.animate-spinner {
+  animation: spinner 1.2s linear infinite;
+}
+
+/* Override Sheet width on mobile to be full-width */
+[data-mobile="true"][data-slot="sidebar"] {
+  width: 100%;
+  max-width: 100%;
+}
