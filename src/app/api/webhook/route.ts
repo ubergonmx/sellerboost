@@ -1,128 +1,186 @@
-import { db } from "@/lib/db"
-import { facebookPages, messages, conversations } from "@/lib/db/schema"
-import { eq, and } from "drizzle-orm"
-import crypto from "crypto"
-import { NextRequest } from "next/server"
-import { getUserProfile } from "@/lib/auth/facebook"
-import { decryptToken } from "@/lib/encryption"
+import crypto from "node:crypto";
+import { and, eq } from "drizzle-orm";
+import type { NextRequest } from "next/server";
+import { getUserProfile } from "@/lib/auth/facebook";
+import { db } from "@/lib/db";
+import {
+  conversations,
+  type FacebookAttachment,
+  facebookPages,
+  messages,
+} from "@/lib/db/schema";
+import { decryptToken } from "@/lib/encryption";
+
+// Facebook Webhook Types
+interface FacebookWebhookBody {
+  object: string;
+  entry: FacebookWebhookEntry[];
+}
+
+interface FacebookWebhookEntry {
+  id: string;
+  time: number;
+  messaging?: FacebookMessagingEvent[];
+}
+
+interface FacebookMessagingEvent {
+  sender: { id: string };
+  recipient: { id: string };
+  timestamp: number;
+  message?: {
+    mid: string;
+    text?: string;
+    attachments?: FacebookAttachment[];
+    is_echo?: boolean;
+  };
+  delivery?: {
+    mids?: string[];
+    watermark: number;
+  };
+  read?: {
+    watermark: number;
+  };
+}
 
 // GET: Webhook verification (one-time setup by Facebook)
 export async function GET(request: NextRequest) {
-  const { searchParams } = new URL(request.url)
+  const { searchParams } = new URL(request.url);
 
-  const mode = searchParams.get("hub.mode")
-  const token = searchParams.get("hub.verify_token")
-  const challenge = searchParams.get("hub.challenge")
+  const mode = searchParams.get("hub.mode");
+  const token = searchParams.get("hub.verify_token");
+  const challenge = searchParams.get("hub.challenge");
 
-  console.log("Webhook verification request:", { mode, token, challenge })
-  console.log("VERIFY_TOKEN:", process.env.FACEBOOK_VERIFY_TOKEN)
+  console.log("Webhook verification request:", { mode, token, challenge });
+  console.log("VERIFY_TOKEN:", process.env.FACEBOOK_VERIFY_TOKEN);
   if (mode === "subscribe" && token === process.env.FACEBOOK_VERIFY_TOKEN) {
-    console.log("✓ Webhook verified successfully")
-    return new Response(challenge, { status: 200 })
+    console.log("✓ Webhook verified successfully");
+    return new Response(challenge, { status: 200 });
   }
 
-  console.error("✗ Webhook verification failed")
-  return new Response("Forbidden", { status: 403 })
+  console.error("✗ Webhook verification failed");
+  return new Response("Forbidden", { status: 403 });
 }
 
 // POST: Receive message events from Facebook
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.text()
-    const signature = request.headers.get("x-hub-signature-256")
+    const body = await request.text();
+    const signature = request.headers.get("x-hub-signature-256");
 
     // Verify signature
     if (!verifySignature(body, signature)) {
-      console.error("✗ Invalid webhook signature")
-      return new Response("Forbidden", { status: 403 })
+      console.error("✗ Invalid webhook signature");
+      return new Response("Forbidden", { status: 403 });
     }
 
-    const data = JSON.parse(body)
+    const data = JSON.parse(body);
 
     // Quick acknowledgment (must respond within 20 seconds)
-    const responsePromise = Promise.resolve(new Response("OK", { status: 200 }))
+    const responsePromise = Promise.resolve(
+      new Response("OK", { status: 200 }),
+    );
 
     // Process webhook events asynchronously
     if (data.object === "page") {
       processWebhookEvents(data).catch((error) => {
-        console.error("Error processing webhook events:", error)
-      })
+        console.error("Error processing webhook events:", error);
+      });
     }
 
-    return responsePromise
+    return responsePromise;
   } catch (error) {
-    console.error("Error in webhook POST handler:", error)
-    return new Response("Internal Server Error", { status: 500 })
+    console.error("Error in webhook POST handler:", error);
+    return new Response("Internal Server Error", { status: 500 });
   }
 }
 
 // Verify webhook signature from Facebook
 function verifySignature(payload: string, signature: string | null): boolean {
-  if (!signature) return false
+  if (!signature) return false;
+
+  const secret = process.env.FACEBOOK_CLIENT_SECRET;
+  if (!secret) {
+    console.error("FACEBOOK_CLIENT_SECRET is not configured");
+    return false;
+  }
 
   const expectedSignature = crypto
-    .createHmac("sha256", process.env.FACEBOOK_CLIENT_SECRET!)
+    .createHmac("sha256", secret)
     .update(payload)
-    .digest("hex")
+    .digest("hex");
 
-  return `sha256=${expectedSignature}` === signature
+  return `sha256=${expectedSignature}` === signature;
 }
 
 // Process webhook events
-async function processWebhookEvents(body: any) {
+async function processWebhookEvents(body: FacebookWebhookBody) {
   for (const entry of body.entry) {
-    const pageId = entry.id // Facebook Page ID
+    const pageId = entry.id; // Facebook Page ID
 
     // Find which user owns this Page
     const [page] = await db
       .select()
       .from(facebookPages)
       .where(eq(facebookPages.pageId, pageId))
-      .limit(1)
+      .limit(1);
 
     if (!page) {
-      console.warn(`⚠ No user found for Page ID: ${pageId}`)
-      continue
+      console.warn(`⚠ No user found for Page ID: ${pageId}`);
+      continue;
     }
 
-    console.log(`📨 Processing events for Page: ${page.pageName} (User ID: ${page.userId})`)
+    console.log(
+      `📨 Processing events for Page: ${page.pageName} (User ID: ${page.userId})`,
+    );
 
     // Process each messaging event
     for (const event of entry.messaging || []) {
-      await processMessagingEvent(page, event)
+      await processMessagingEvent(page, event);
     }
   }
 }
 
 // Handle individual messaging event
-async function processMessagingEvent(page: typeof facebookPages.$inferSelect, event: any) {
-  const timestamp = new Date(event.timestamp)
+async function processMessagingEvent(
+  page: typeof facebookPages.$inferSelect,
+  event: FacebookMessagingEvent,
+) {
+  const timestamp = new Date(event.timestamp);
 
   // 1. Handle incoming message (not an echo)
   if (event.message && !event.message.is_echo) {
-    const senderId = event.sender.id // Customer's PSID
-    const hasText = event.message.text && event.message.text.trim().length > 0
-    const hasAttachments = event.message.attachments && event.message.attachments.length > 0
+    const senderId = event.sender.id; // Customer's PSID
+    const hasText = event.message.text && event.message.text.trim().length > 0;
+    const hasAttachments =
+      event.message.attachments && event.message.attachments.length > 0;
 
     // Log message details
-    if (hasText && hasAttachments) {
-      console.log(`💬 New message from ${senderId}: ${event.message.text} [${event.message.attachments.length} attachment(s)]`)
+    const attachments = event.message.attachments;
+    if (hasText && hasAttachments && attachments) {
+      console.log(
+        `💬 New message from ${senderId}: ${event.message.text} [${attachments.length} attachment(s)]`,
+      );
     } else if (hasText) {
-      console.log(`💬 New message from ${senderId}: ${event.message.text}`)
-    } else if (hasAttachments) {
-      const attachmentTypes = event.message.attachments.map((a: any) => a.type).join(", ")
-      console.log(`📎 New attachment from ${senderId}: [${attachmentTypes}]`)
+      console.log(`💬 New message from ${senderId}: ${event.message.text}`);
+    } else if (hasAttachments && attachments) {
+      const attachmentTypes = attachments.map((a) => a.type).join(", ");
+      console.log(`📎 New attachment from ${senderId}: [${attachmentTypes}]`);
     }
 
     // Determine what to show in conversation preview
-    const previewText = hasText
-      ? event.message.text
-      : hasAttachments
-        ? `Sent ${event.message.attachments.length} attachment(s)`
-        : null
+    const previewText: string | null = hasText
+      ? (event.message.text ?? null)
+      : hasAttachments && attachments
+        ? `Sent ${attachments.length} attachment(s)`
+        : null;
 
     // Update or create conversation first to get conversation ID
-    const conversation = await upsertConversation(page, senderId, previewText, timestamp)
+    const conversation = await upsertConversation(
+      page,
+      senderId,
+      previewText,
+      timestamp,
+    );
 
     // Store message in database with conversationId
     await db.insert(messages).values({
@@ -139,38 +197,40 @@ async function processMessagingEvent(page: typeof facebookPages.$inferSelect, ev
       timestamp: timestamp,
       status: "delivered",
       isEcho: false,
-    })
+    });
 
-    console.log(`✓ Message saved for user ${page.userId}`)
+    console.log(`✓ Message saved for user ${page.userId}`);
   }
 
   // 2. Handle message echo (message sent by Page)
-  if (event.message && event.message.is_echo) {
-    console.log(`📤 Echo message: ${event.message.text || "[attachment]"}`)
+  if (event.message?.is_echo) {
+    console.log(`📤 Echo message: ${event.message.text || "[attachment]"}`);
 
     // Update message status if we sent it
     await db
       .update(messages)
       .set({ status: "sent" })
-      .where(eq(messages.messageId, event.message.mid))
+      .where(eq(messages.messageId, event.message.mid));
   }
 
   // 3. Handle delivery confirmation
   if (event.delivery) {
-    console.log(`✓ Delivery confirmed for ${event.delivery.mids?.length || 0} messages`)
+    console.log(
+      `✓ Delivery confirmed for ${event.delivery.mids?.length || 0} messages`,
+    );
 
     for (const mid of event.delivery.mids || []) {
       await db
         .update(messages)
         .set({ status: "delivered" })
-        .where(eq(messages.messageId, mid))
+        .where(eq(messages.messageId, mid));
     }
   }
 
   // 4. Handle read receipt
   if (event.read) {
-    const readTimestamp = new Date(event.read.watermark)
-    console.log(`👀 Messages read up to: ${readTimestamp.toISOString()}`)
+    const readTimestamp = new Date(event.read.watermark);
+    console.log(`👀 Messages read up to: ${readTimestamp.toISOString()}`);
 
     // Update all messages from this sender that were sent before watermark
     await db
@@ -180,9 +240,9 @@ async function processMessagingEvent(page: typeof facebookPages.$inferSelect, ev
         and(
           eq(messages.pageId, page.pageId),
           eq(messages.senderId, event.sender.id),
-          eq(messages.direction, "outgoing")
-        )
-      )
+          eq(messages.direction, "outgoing"),
+        ),
+      );
 
     // Reset unread count for conversation
     await db
@@ -191,9 +251,9 @@ async function processMessagingEvent(page: typeof facebookPages.$inferSelect, ev
       .where(
         and(
           eq(conversations.pageId, page.pageId),
-          eq(conversations.userPsid, event.sender.id)
-        )
-      )
+          eq(conversations.userPsid, event.sender.id),
+        ),
+      );
   }
 }
 
@@ -203,7 +263,7 @@ async function upsertConversation(
   userPsid: string,
   messageText: string | null,
   timestamp: Date,
-  direction: "incoming" | "outgoing" = "incoming"
+  direction: "incoming" | "outgoing" = "incoming",
 ) {
   // Check if conversation exists
   const [existingConversation] = await db
@@ -212,34 +272,36 @@ async function upsertConversation(
     .where(
       and(
         eq(conversations.pageId, page.pageId),
-        eq(conversations.userPsid, userPsid)
-      )
+        eq(conversations.userPsid, userPsid),
+      ),
     )
-    .limit(1)
+    .limit(1);
 
   if (existingConversation) {
     // Update existing conversation
     // Only increment unread count if message is incoming
-    const newUnreadCount = direction === "incoming"
-      ? (existingConversation.unreadCount || 0) + 1
-      : 0 // Reset to 0 when we send a message
+    const newUnreadCount =
+      direction === "incoming"
+        ? (existingConversation.unreadCount || 0) + 1
+        : 0; // Reset to 0 when we send a message
 
     // Fetch user profile if we don't have it yet
-    let userName = existingConversation.userName
-    let userProfilePic = existingConversation.userProfilePic
+    let userName = existingConversation.userName;
+    let userProfilePic = existingConversation.userProfilePic;
 
     if (!userName || !userProfilePic) {
       try {
-        const pageAccessToken = await decryptToken(page.pageAccessToken)
-        const profileResult = await getUserProfile(pageAccessToken, userPsid)
+        const pageAccessToken = await decryptToken(page.pageAccessToken);
+        const profileResult = await getUserProfile(pageAccessToken, userPsid);
 
         if (profileResult.success && profileResult.profile) {
-          userName = `${profileResult.profile.firstName} ${profileResult.profile.lastName}`.trim()
-          userProfilePic = profileResult.profile.profilePic
-          console.log(`✓ Fetched user profile: ${userName}`)
+          userName =
+            `${profileResult.profile.firstName} ${profileResult.profile.lastName}`.trim();
+          userProfilePic = profileResult.profile.profilePic;
+          console.log(`✓ Fetched user profile: ${userName}`);
         }
       } catch (error) {
-        console.error("Error fetching user profile:", error)
+        console.error("Error fetching user profile:", error);
       }
     }
 
@@ -254,43 +316,48 @@ async function upsertConversation(
         userProfilePic: userProfilePic,
         updatedAt: new Date(),
       })
-      .where(eq(conversations.id, existingConversation.id))
+      .where(eq(conversations.id, existingConversation.id));
 
-    return existingConversation
+    return existingConversation;
   } else {
     // Fetch user profile for new conversation
-    let userName: string | null = null
-    let userProfilePic: string | null = null
+    let userName: string | null = null;
+    let userProfilePic: string | null = null;
 
     try {
-      const pageAccessToken = await decryptToken(page.pageAccessToken)
-      const profileResult = await getUserProfile(pageAccessToken, userPsid)
+      const pageAccessToken = await decryptToken(page.pageAccessToken);
+      const profileResult = await getUserProfile(pageAccessToken, userPsid);
 
       if (profileResult.success && profileResult.profile) {
-        userName = `${profileResult.profile.firstName} ${profileResult.profile.lastName}`.trim()
-        userProfilePic = profileResult.profile.profilePic
-        console.log(`✓ Fetched user profile for new conversation: ${userName}`)
+        userName =
+          `${profileResult.profile.firstName} ${profileResult.profile.lastName}`.trim();
+        userProfilePic = profileResult.profile.profilePic;
+        console.log(`✓ Fetched user profile for new conversation: ${userName}`);
       }
     } catch (error) {
-      console.error("Error fetching user profile for new conversation:", error)
+      console.error("Error fetching user profile for new conversation:", error);
     }
 
     // Create new conversation
-    const [newConversation] = await db.insert(conversations).values({
-      userId: page.userId,
-      facebookPageId: page.id,
-      pageId: page.pageId,
-      userPsid: userPsid,
-      userName: userName,
-      userProfilePic: userProfilePic,
-      lastMessageAt: timestamp,
-      lastMessageText: messageText,
-      lastMessageDirection: direction,
-      unreadCount: direction === "incoming" ? 1 : 0,
-      status: "active",
-    }).returning()
+    const [newConversation] = await db
+      .insert(conversations)
+      .values({
+        businessId: page.businessId,
+        userId: page.userId,
+        facebookPageId: page.id,
+        pageId: page.pageId,
+        userPsid: userPsid,
+        userName: userName,
+        userProfilePic: userProfilePic,
+        lastMessageAt: timestamp,
+        lastMessageText: messageText,
+        lastMessageDirection: direction,
+        unreadCount: direction === "incoming" ? 1 : 0,
+        status: "active",
+      })
+      .returning();
 
-    console.log(`✓ New conversation created for user ${userPsid}`)
-    return newConversation
+    console.log(`✓ New conversation created for user ${userPsid}`);
+    return newConversation;
   }
 }
