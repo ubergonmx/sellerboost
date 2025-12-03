@@ -9,7 +9,8 @@ export default function PublicLayout({
   children: React.ReactNode;
 }>) {
   const pathname = usePathname();
-  const isAuthRoute = pathname?.startsWith("/login") || pathname?.startsWith("/signup");
+  const isAuthRoute =
+    pathname?.startsWith("/login") || pathname?.startsWith("/signup");
   const isErrorRoute = pathname?.startsWith("/error");
 
   return (
@@ -19,4 +20,3 @@ export default function PublicLayout({
     </>
   );
 }
-
