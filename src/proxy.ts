@@ -1,6 +1,6 @@
-import { isPublicPath } from "@/lib/public-paths";
+import { type NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth/config";
-import { NextRequest, NextResponse } from "next/server";
+import { isPublicPath } from "@/lib/public-paths";
 
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
@@ -15,9 +15,12 @@ export async function proxy(request: NextRequest) {
     headers: request.headers,
   });
 
-  // If user is already logged in and trying to access auth pages, redirect to dashboard
-  if (session?.user && (pathname.startsWith("/login") || pathname.startsWith("/signup"))) {
-    return NextResponse.redirect(new URL("/dashboard", request.url));
+  // If user is already logged in and trying to access auth pages, redirect to app
+  if (
+    session?.user &&
+    (pathname.startsWith("/login") || pathname.startsWith("/signup"))
+  ) {
+    return NextResponse.redirect(new URL("/app", request.url));
   }
 
   // Allow access to public paths without authentication

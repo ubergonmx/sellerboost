@@ -5,7 +5,8 @@ import { Navbar } from "./navbar";
 
 export function NavbarWrapper() {
   const pathname = usePathname();
-  const isAuthRoute = pathname?.startsWith("/login") || pathname?.startsWith("/signup");
+  const isAuthRoute =
+    pathname?.startsWith("/login") || pathname?.startsWith("/signup");
 
   if (isAuthRoute) {
     return null;
@@ -13,4 +14,3 @@ export function NavbarWrapper() {
 
   return <Navbar />;
 }
-
