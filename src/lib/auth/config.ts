@@ -1,11 +1,10 @@
 import { betterAuth } from "better-auth";
-import { createAuthMiddleware } from "better-auth/api";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
+import { createAuthMiddleware } from "better-auth/api";
+import { nextCookies } from "better-auth/next-js";
+import { genericOAuth } from "better-auth/plugins";
 import { db } from "@/lib/db";
 import * as schema from "@/lib/db/schema";
-import { nextCookies } from "better-auth/next-js";
-import { getPages, subscribePageToWebhook } from "./facebook";
-import { upsertFacebookPage } from "@/dal/facebook";
 
 export const auth = betterAuth({
   database: drizzleAdapter(db, {
@@ -27,48 +26,27 @@ export const auth = betterAuth({
   },
   hooks: {
     after: createAuthMiddleware(async (ctx) => {
-      // Run after sign-in/sign-up with Facebook
+      // Facebook page connection is now handled during onboarding
+      // via linkSocial with extended scopes, not during initial login
+      // This hook is kept for any future post-auth processing needs
       if (ctx.path.includes("/callback/") && ctx.params.id === "facebook") {
         const session = ctx.context.newSession;
-        
         if (session?.user?.id) {
-          try {
-            // Get the access token for Facebook
-            const { accessToken } = await auth.api.getAccessToken({
-              body: {
-                providerId: "facebook",
-                userId: session.user.id,
-              },
-            });
-
-            if (accessToken) {
-              const pages = await getPages(accessToken);
-              console.log("Facebook pages:", pages);
-              for (const page of pages) {
-                console.log("Creating & subscribing to Facebook page:", page);
-                await upsertFacebookPage(session.user.id, page.id, page.name, page.access_token, page.picture?.data?.url, page.category, page.tasks);
-                await subscribePageToWebhook(page.id, page.access_token);
-              }
-            }
-          } catch (error) {
-            console.error("Error getting Facebook pages:", error);
-          }
+          console.log(
+            "Facebook login completed for user:",
+            session.user.id,
+            "- Redirecting to onboarding for page connection"
+          );
         }
       }
-    })
+    }),
   },
   socialProviders: {
     facebook: {
       clientId: process.env.FACEBOOK_CLIENT_ID as string,
       clientSecret: process.env.FACEBOOK_CLIENT_SECRET as string,
-      // scope: [
-      //   "email", // User's email
-      //   "pages_messaging", // Send/receive messages
-      //   "pages_manage_engagement", // Manage inbox
-      //   "pages_read_engagement", // Read engagement data
-      //   "pages_manage_metadata", // REQUIRED for webhooks!
-      // ],
-      configId: "4613696038857789",
+      // Basic login configId - email + pages_show_list (required for Business type apps)
+      configId: "1533455441256952",
       onError: (error: Error, request: { url: string; method: string }) => {
         console.error("Facebook OAuth Error:", {
           error,
@@ -78,7 +56,7 @@ export const auth = betterAuth({
             url: request.url,
             method: request.method,
           },
-        })
+        });
       },
     },
     google: {
@@ -93,12 +71,12 @@ export const auth = betterAuth({
             url: request.url,
             method: request.method,
           },
-        })
+        });
       },
     },
   },
   emailVerification: {
-    sendVerificationEmail: async ({ user, url, token }, request) => {
+    sendVerificationEmail: async ({ user, url, token }, _request) => {
       // Console log for now - replace with actual email sending later
       console.log("=== Email Verification ===");
       console.log("To:", user.email);
@@ -112,7 +90,7 @@ export const auth = betterAuth({
   account: {
     accountLinking: {
       enabled: true,
-      trustedProviders: ["facebook", "google"],
+      trustedProviders: ["facebook", "facebook-pages", "google"],
     },
   },
   trustedOrigins: [
@@ -123,12 +101,40 @@ export const auth = betterAuth({
     "http://192.168.88.104:3000",
     "https://sellerboost.com",
     "https://sellerboost.vercel.app",
-    "https://galilea-mouthy-veola.ngrok-free.dev"
+    "https://galilea-mouthy-veola.ngrok-free.dev",
   ],
   baseURL: process.env.BETTER_AUTH_URL || "http://localhost:3000",
   secret: process.env.BETTER_AUTH_SECRET as string,
   plugins: [
     nextCookies(),
-  ]
+    genericOAuth({
+      config: [
+        {
+          // Facebook Pages provider for onboarding - has full page permissions
+          providerId: "facebook-pages",
+          clientId: process.env.FACEBOOK_CLIENT_ID as string,
+          clientSecret: process.env.FACEBOOK_CLIENT_SECRET as string,
+          authorizationUrl: "https://www.facebook.com/v19.0/dialog/oauth",
+          tokenUrl: "https://graph.facebook.com/v19.0/oauth/access_token",
+          // Onboarding configId with page permissions: pages_messaging, pages_manage_engagement, etc.
+          authorizationUrlParams: {
+            config_id: "4613696038857789",
+          },
+          getUserInfo: async (tokens) => {
+            const response = await fetch(
+              `https://graph.facebook.com/me?fields=id,name,email,picture&access_token=${tokens.accessToken}`
+            );
+            const data = await response.json();
+            return {
+              id: data.id,
+              name: data.name,
+              email: data.email,
+              image: data.picture?.data?.url,
+              emailVerified: true,
+            };
+          },
+        },
+      ],
+    }),
+  ],
 });
-
