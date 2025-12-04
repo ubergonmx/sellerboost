@@ -452,7 +452,7 @@ function MessageBubble({
           }`}
         >
           {message.message_text && (
-            <p className="text-sm px-3 py-2">{message.message_text}</p>
+            <p className="break-all text-sm px-3 py-2">{message.message_text}</p>
           )}
           {attachments && attachments.length > 0 && (
             <div
