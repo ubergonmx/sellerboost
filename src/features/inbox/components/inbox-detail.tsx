@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useEffect, useRef, useState } from "react";
+import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { useScrollToBottom } from "@/features/inbox/hooks/use-scroll-to-bottom";
 import { useQueryState } from "nuqs";
 import {
@@ -70,9 +70,7 @@ export function InboxDetail() {
 
 function InboxDetailContent() {
   const [selectedId] = useQueryState("id");
-  const [messageText, setMessageText] = useState("");
   const [pageInfo, setPageInfo] = useState<PageInfo | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Get the selected conversation from the collection (real-time via Electric SQL)
   const { data: conversations, isLoading: isLoadingConversation } = useLiveQuery(
@@ -146,45 +144,33 @@ function InboxDetailContent() {
     }
   }, [conversation?.id, conversation?.unreadCount]);
 
-  const handleSendMessage = () => {
-    if (!messageText.trim() || !conversation) return;
+  const handleSendMessage = useCallback(
+    (text: string) => {
+      if (!text.trim() || !conversation) return;
 
-    const text = messageText.trim();
-    setMessageText("");
+      try {
+        // Insert into collection - triggers onInsert -> createMessageAction -> sendToFacebook
+        // Use negative random ID within int32 range (won't conflict with real positive DB IDs)
+        const tempId = -Math.floor(Math.random() * 2147483647);
+        messageCollection.insert({
+          id: tempId,
+          page_id: conversation.pageId,
+          conversation_id: conversation.id,
+          sender_id: conversation.pageId,
+          recipient_id: conversation.userPsid,
+          direction: "outgoing",
+          message_text: text.trim(),
+          timestamp: new Date(),
+        });
 
-    try {
-      // Insert into collection - triggers onInsert -> createMessageAction -> sendToFacebook
-      // Use negative random ID within int32 range (won't conflict with real positive DB IDs)
-      const tempId = -Math.floor(Math.random() * 2147483647);
-      messageCollection.insert({
-        id: tempId,
-        page_id: conversation.pageId,
-        conversation_id: conversation.id,
-        sender_id: conversation.pageId,
-        recipient_id: conversation.userPsid,
-        direction: "outgoing",
-        message_text: text,
-        timestamp: new Date(),
-      });
-
-      // Scroll to bottom after a brief delay for the message to appear
-      setTimeout(() => scrollToBottom(), 100);
-    } catch (error) {
-      console.error("Error sending message:", error);
-      setMessageText(text);
-    }
-  };
-
-  const handleKeyPress = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault();
-      handleSendMessage();
-    }
-  };
-
-  const handleFileSelect = () => {
-    fileInputRef.current?.click();
-  };
+        // Scroll to bottom after a brief delay for the message to appear
+        setTimeout(() => scrollToBottom(), 100);
+      } catch (error) {
+        console.error("Error sending message:", error);
+      }
+    },
+    [conversation, scrollToBottom]
+  );
 
   const handleArchive = async () => {
     if (!conversation) return;
@@ -203,7 +189,7 @@ function InboxDetailContent() {
     console.log("Generating payment link for conversation:", conversation?.id);
   };
 
-  const formatTime = (date: Date | string | null | undefined) => {
+  const formatTime = useCallback((date: Date | string | null | undefined) => {
     if (!date) return "";
     const d = typeof date === "string" ? new Date(date) : date;
     return d.toLocaleTimeString("en-US", {
@@ -211,7 +197,7 @@ function InboxDetailContent() {
       minute: "2-digit",
       hour12: true,
     });
-  };
+  }, []);
 
   // No conversation selected
   if (!selectedId) {
@@ -350,55 +336,11 @@ function InboxDetailContent() {
       </div>
 
       {/* Message Input */}
-      <div className="border-t p-4">
-        <div className="flex items-end gap-2">
-          <input
-            type="file"
-            ref={fileInputRef}
-            className="hidden"
-            multiple
-            onChange={(e) => {
-              const files = Array.from(e.target.files || []);
-              if (files.length > 0) {
-                console.log("Files selected:", files);
-              }
-            }}
-          />
-          <Button
-            variant="ghost"
-            size="icon"
-            className="mb-1"
-            onClick={handleFileSelect}
-          >
-            <Paperclip className="h-5 w-5" />
-          </Button>
-          <Textarea
-            placeholder="Type a message..."
-            value={messageText}
-            onChange={(e) => setMessageText(e.target.value)}
-            onKeyDown={handleKeyPress}
-            className="min-h-[44px] resize-none"
-            rows={1}
-          />
-          <Button
-            onClick={handleSendMessage}
-            disabled={!messageText.trim()}
-            className="mb-1"
-          >
-            <Send className="h-4 w-4" />
-          </Button>
-        </div>
-        <div className="mt-2 flex gap-2">
-          <Button variant="outline" size="sm" onClick={handleCreateInvoice}>
-            <Receipt className="mr-2 h-3 w-3" />
-            Quick Invoice
-          </Button>
-          <Button variant="outline" size="sm" onClick={handleGeneratePaymentLink}>
-            <Link className="mr-2 h-3 w-3" />
-            Payment Link
-          </Button>
-        </div>
-      </div>
+      <MessageInput
+        onSendMessage={handleSendMessage}
+        onCreateInvoice={handleCreateInvoice}
+        onGeneratePaymentLink={handleGeneratePaymentLink}
+      />
     </div>
   );
 }
@@ -540,4 +482,78 @@ function AttachmentDisplay({
   }
 
   return null;
+}
+
+// Extracted message input component to prevent re-renders of the entire InboxDetail
+function MessageInput({
+  onSendMessage,
+  onCreateInvoice,
+  onGeneratePaymentLink,
+}: {
+  onSendMessage: (text: string) => void;
+  onCreateInvoice: () => void;
+  onGeneratePaymentLink: () => void;
+}) {
+  const [messageText, setMessageText] = useState("");
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleSend = () => {
+    if (!messageText.trim()) return;
+    onSendMessage(messageText);
+    setMessageText("");
+  };
+
+  const handleKeyPress = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      handleSend();
+    }
+  };
+
+  const handleFileSelect = () => {
+    fileInputRef.current?.click();
+  };
+
+  return (
+    <div className="border-t p-4">
+      <div className="flex items-end gap-2">
+        <input
+          type="file"
+          ref={fileInputRef}
+          className="hidden"
+          multiple
+          onChange={(e) => {
+            const files = Array.from(e.target.files || []);
+            if (files.length > 0) {
+              console.log("Files selected:", files);
+            }
+          }}
+        />
+        <Button variant="ghost" size="icon" className="mb-1" onClick={handleFileSelect}>
+          <Paperclip className="h-5 w-5" />
+        </Button>
+        <Textarea
+          placeholder="Type a message..."
+          value={messageText}
+          onChange={(e) => setMessageText(e.target.value)}
+          onKeyDown={handleKeyPress}
+          className="min-h-[44px] resize-none"
+          rows={1}
+        />
+        <Button onClick={handleSend} disabled={!messageText.trim()} className="mb-1">
+          <Send className="h-4 w-4" />
+        </Button>
+      </div>
+      <div className="mt-2 flex gap-2">
+        <Button variant="outline" size="sm" onClick={onCreateInvoice}>
+          <Receipt className="mr-2 h-3 w-3" />
+          Quick Invoice
+        </Button>
+        <Button variant="outline" size="sm" onClick={onGeneratePaymentLink}>
+          <Link className="mr-2 h-3 w-3" />
+          Payment Link
+        </Button>
+      </div>
+    </div>
+  );
 }
