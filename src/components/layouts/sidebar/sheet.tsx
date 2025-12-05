@@ -20,12 +20,32 @@ function Sheet({
   preserveState?: boolean
 }) {
   const [enableAnimations, setEnableAnimations] = React.useState(false)
+  const justBecameVisible = React.useRef(true)
+  const prevOpen = React.useRef(open)
 
   React.useEffect(() => {
-    if (open === false) {
+    // Skip animation only when Activity just became visible AND open is already true
+    // (meaning it was open before Activity hid it)
+    if (justBecameVisible.current) {
+      justBecameVisible.current = false
+      // If open changed from closed to open, this is a user action, enable animations
+      if (prevOpen.current === false && open === true) {
+        setEnableAnimations(true)
+      }
+    } else {
+      // Normal operation: enable animations for any state change
       setEnableAnimations(true)
     }
+    prevOpen.current = open
   }, [open])
+
+  // Reset when Activity destroys effects (hidden mode)
+  React.useEffect(() => {
+    return () => {
+      justBecameVisible.current = true
+      setEnableAnimations(false)
+    }
+  }, [])
 
   return (
     <SheetAnimationContext.Provider value={enableAnimations}>
@@ -84,7 +104,7 @@ function SheetOverlay({
         // Always allow close animation
         "data-[state=closed]:animate-out data-[state=closed]:fade-out-0",
         // Keep element in final position after close animation to prevent flicker
-        forceMount && "data-[state=closed]:[animation-fill-mode:forwards]",
+        forceMount && "data-[state=closed]:fill-mode-[forwards]",
         className
       )}
       {...props}
@@ -138,7 +158,7 @@ function SheetContent({
             "data-[state=open]:animate-in data-[state=open]:duration-500",
           "data-[state=closed]:animate-out data-[state=closed]:duration-300",
           // Keep element in final position after close animation to prevent flicker
-          preserveState && "data-[state=closed]:[animation-fill-mode:forwards]",
+          preserveState && "data-[state=closed]:fill-mode-[forwards]",
           side === "right" &&
             cn(
               "inset-y-0 right-0 h-full w-3/4 border-l sm:max-w-sm",
