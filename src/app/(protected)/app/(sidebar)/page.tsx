@@ -12,7 +12,7 @@ import { db } from "@/lib/db";
 import { businesses, facebookPages } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
 
-async function InboxContent() {
+export default async function InboxPage() {
   const session = await auth.api.getSession({
     headers: await headers(),
   });
@@ -50,13 +50,5 @@ async function InboxContent() {
       <PageHeader breadcrumbs={[{ label: "Inbox" }]} />
       <InboxDetail />
     </SidebarLayout>
-  );
-}
-
-export default function InboxPage() {
-  return (
-    <Suspense fallback={<LayoutLoader />}>
-      <InboxContent />
-    </Suspense>
   );
 }

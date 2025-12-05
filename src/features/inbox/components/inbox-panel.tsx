@@ -1,6 +1,5 @@
 "use client";
 
-import { Suspense } from "react";
 import { useQueryState } from "nuqs";
 import { useLiveQuery } from "@tanstack/react-db";
 
@@ -24,27 +23,51 @@ import { ClientOnly } from "@/providers/client-only";
 
 export function InboxPanel() {
   return (
-    <Suspense fallback={<PanelSkeleton />}>
-      <ClientOnly>
-        <InboxPanelContent />
-      </ClientOnly>
-    </Suspense>
+    <ClientOnly>
+      <InboxPanelContent />
+    </ClientOnly>
   );
 }
 
 function InboxPanelContent() {
   const { setOpenMobile, isMobile } = useSidebar();
   const [selectedId, setSelectedId] = useQueryState("id");
+  const [search, setSearch] = useQueryState("search", { defaultValue: "" });
+  const [unreadOnly, setUnreadOnly] = useQueryState("unread", {
+    defaultValue: "false",
+    parse: (value) => value,
+    serialize: (value) => value,
+  });
   const panelClassName = isMobile
     ? "flex flex-1"
     : "w-[calc(var(--sidebar-width)-var(--sidebar-width-icon))]!";
 
   // Subscribe to conversations via Electric SQL (snake_case from DB)
-  const { data: conversations, isLoading } = useLiveQuery((q) =>
+  const { data: rawConversations, isLoading } = useLiveQuery((q) =>
     q
       .from({ conv: conversationCollection })
       .orderBy(({ conv }) => conv.last_message_at, "desc")
   );
+
+  // Filter conversations based on search and unread filter
+  const conversations = rawConversations?.filter((conv) => {
+    // Unread filter
+    if (unreadOnly === "true") {
+      const isUnread =
+        conv.last_message_direction === "incoming" && (conv.unread_count || 0) > 0;
+      if (!isUnread) return false;
+    }
+
+    // Search filter
+    if (search) {
+      const searchLower = search.toLowerCase();
+      const nameMatch = conv.user_name?.toLowerCase().includes(searchLower);
+      const messageMatch = conv.last_message_text?.toLowerCase().includes(searchLower);
+      if (!nameMatch && !messageMatch) return false;
+    }
+
+    return true;
+  });
 
   const handleItemClick = (uid: string) => {
     setSelectedId(uid);
@@ -85,10 +108,18 @@ function InboxPanelContent() {
           </div>
           <Label className="flex items-center gap-2 text-sm">
             <span>Unread</span>
-            <Switch className="shadow-none" />
+            <Switch
+              className="shadow-none"
+              checked={unreadOnly === "true"}
+              onCheckedChange={(checked) => setUnreadOnly(checked ? "true" : "false")}
+            />
           </Label>
         </div>
-        <SidebarInput placeholder="Search conversations..." />
+        <SidebarInput
+          placeholder="Search conversations..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value || null)}
+        />
       </SidebarHeader>
       <SidebarContent>
         <SidebarGroup className="p-0">

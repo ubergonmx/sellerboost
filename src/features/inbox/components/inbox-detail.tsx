@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useScrollToBottom } from "@/features/inbox/hooks/use-scroll-to-bottom";
 import { useQueryState } from "nuqs";
 import {
@@ -60,11 +60,9 @@ interface PageInfo {
 
 export function InboxDetail() {
   return (
-    <Suspense fallback={<DetailSkeleton />}>
-      <ClientOnly>
-        <InboxDetailContent />
-      </ClientOnly>
-    </Suspense>
+    <ClientOnly>
+      <InboxDetailContent />
+    </ClientOnly>
   );
 }
 
