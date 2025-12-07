@@ -1,13 +1,14 @@
-import { createCollection } from "@tanstack/react-db";
-import { electricCollectionOptions } from "@tanstack/electric-db-collection";
+import { deleteConversationAction, updateConversationAction } from "@/features/inbox/actions/conversations";
+import { createMessageAction, deleteMessageAction, updateMessageAction } from "@/features/inbox/actions/messages";
 import {
   conversationCollectionSchema,
   messageCollectionSchema,
   type ConversationCollectionItem,
   type MessageCollectionItem,
 } from "@/features/inbox/schemas";
-import { updateConversationAction, deleteConversationAction } from "@/features/inbox/actions/conversations";
-import { createMessageAction, updateMessageAction, deleteMessageAction } from "@/features/inbox/actions/messages";
+import type { GetExtensions, Row, ShapeStreamOptions } from "@electric-sql/client";
+import { electricCollectionOptions } from "@tanstack/electric-db-collection";
+import { createCollection } from "@tanstack/react-db";
 
 export type { ConversationCollectionItem as Conversation, MessageCollectionItem as Message };
 
@@ -16,10 +17,10 @@ export type { ConversationCollectionItem as Conversation, MessageCollectionItem 
  * @param table - The table name (e.g., "conversations", "messages")
  * @param apiUrl - The API endpoint URL (defaults to "/api/conversations")
  */
-const getShapeOptions = (
+const getShapeOptions = <T extends Row<unknown>>(
   table: string,
   apiUrl = "/api/conversations"
-) => ({
+): ShapeStreamOptions<GetExtensions<T>> => ({
   url: new URL(
     apiUrl,
     typeof window !== "undefined"
@@ -29,53 +30,18 @@ const getShapeOptions = (
   params: {
     table,
   },
+  liveSse: true,
 });
-
 /**
  * Electric SQL collection for conversations.
  * Provides real-time sync of conversation data.
- *
- * Note: Conversations are created via webhook (incoming messages),
- * so onInsert is not implemented. Only onUpdate is needed for:
- * - Marking as read (unreadCount = 0)
- * - Archiving (status = "archived")
  */
 export const conversationCollection = createCollection(
   electricCollectionOptions({
     id: "conversations",
     schema: conversationCollectionSchema,
     getKey: (item) => item.id as number,
-    shapeOptions: getShapeOptions("conversations"),
-
-    // DO NOT DELETE this code. We might come back to this later.
-    // onUpdate: async ({ transaction }) => {
-    //   const results: number[] = [];
-
-    //   for (const mutation of transaction.mutations) {
-    //     const conversationId = mutation.key as number;
-    //     const changes = mutation.changes;
-
-    //     // Extract only the fields we allow to be updated (using snake_case to match DB)
-    //     const updateData: { unread_count?: number; status?: "active" | "archived" | "spam" } = {};
-
-    //     if (typeof changes.unread_count === "number") {
-    //       updateData.unread_count = changes.unread_count;
-    //     }
-    //     if (changes.status === "active" || changes.status === "archived" || changes.status === "spam") {
-    //       updateData.status = changes.status;
-    //     }
-
-    //     const result = await updateConversationAction(conversationId, updateData);
-
-    //     if (!result.success) {
-    //       throw new Error(result.error || "Failed to update conversation");
-    //     }
-
-    //     results.push(result.txid!);
-    //   }
-
-    //   return { txid: results };
-    // },
+    shapeOptions: getShapeOptions<ConversationCollectionItem>("conversations"),
 
     onUpdate: async ({ transaction }) => {
       const results: number[] = [];
@@ -122,17 +88,13 @@ export const conversationCollection = createCollection(
 /**
  * Electric SQL collection for messages.
  * Provides real-time sync of message data.
- *
- * Note: Messages are created via webhook (incoming) or send-message action (outgoing),
- * so no mutation handlers are implemented here - this is read-only sync.
  */
 export const messageCollection = createCollection(
   electricCollectionOptions({
     id: "messages",
     schema: messageCollectionSchema,
     getKey: (item) => item.id as number,
-    shapeOptions: getShapeOptions("messages"),
-
+    shapeOptions: getShapeOptions<MessageCollectionItem>("messages"),
 
     onInsert: async ({ transaction }) => {
       const results: number[] = [];

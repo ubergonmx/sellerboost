@@ -3,6 +3,7 @@ import postgres from "postgres";
 import { ExtractTablesWithRelations, sql } from "drizzle-orm";
 import * as schema from "./schema";
 import { PgTransaction } from "drizzle-orm/pg-core";
+import { Txid } from "@tanstack/electric-db-collection";
 
 if (!process.env.DATABASE_URL) {
   throw new Error("DATABASE_URL environment variable is not set");
@@ -17,13 +18,13 @@ export const db = drizzle(client, { schema });
  */
 type Transaction = PgTransaction<PostgresJsQueryResultHKT, typeof schema, ExtractTablesWithRelations<typeof schema>>;
 
-export const getTxId = async (tx: Transaction) => {
+export const getTxId = async (tx: Transaction) : Promise<Txid> => {
   const result = await tx.execute<{ txid: number }>(
     sql`SELECT pg_current_xact_id()::xid::text::int as txid`
   );
   const txid = result[0].txid;
 
-  if(!txid) {
+  if(txid === undefined) {
     throw new Error("Failed to get transaction ID");
   }
 
