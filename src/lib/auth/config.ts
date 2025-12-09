@@ -47,6 +47,8 @@ export const auth = betterAuth({
       clientSecret: process.env.FACEBOOK_CLIENT_SECRET as string,
       // Basic login configId - email + pages_show_list (required for Business type apps)
       configId: "1533455441256952",
+      // scopes: ["email", "pages_show_list", "pages_manage_engagement", "pages_read_engagement", "pages_manage_metadata"],
+      // scopes: ["email", "public_profile"],
       onError: (error: Error, request: { url: string; method: string }) => {
         console.error("Facebook OAuth Error:", {
           error,
