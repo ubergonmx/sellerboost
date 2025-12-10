@@ -4,6 +4,9 @@ settings:
   autoInstallPeers: true
   excludeLinksFromLockfile: false
 
+overrides:
+  '@electric-sql/client': ^1.2.2
+
 importers:
 
   .:
@@ -401,9 +404,6 @@ packages:
     engines: {bun: '>=1', deno: '>=2', node: '>=16'}
     peerDependencies:
       '@noble/ciphers': ^1.0.0
-
-  '@electric-sql/client@1.2.0':
-    resolution: {integrity: sha512-K/MEjti3UF4aPKJJqO6Tp4f5noqc2/3icU1NPdpKfQaHwbzGtEX2aJmL2vxTEUJbfyrISkPKbOPnrz/lAvw1Vg==}
 
   '@electric-sql/client@1.2.2':
     resolution: {integrity: sha512-zVN9d3XYLA8fYWIqNlmsyvde58uA98UfLJxT1bQR+o4pxOpP3lXqJ7iaMHPG2JWecCzGNbMOgyvVRRbE3WQFkg==}
@@ -3849,12 +3849,6 @@ snapshots:
     dependencies:
       '@noble/ciphers': 1.3.0
 
-  '@electric-sql/client@1.2.0':
-    dependencies:
-      '@microsoft/fetch-event-source': 2.0.1
-    optionalDependencies:
-      '@rollup/rollup-darwin-arm64': 4.53.3
-
   '@electric-sql/client@1.2.2':
     dependencies:
       '@microsoft/fetch-event-source': 2.0.1
@@ -5187,7 +5181,7 @@ snapshots:
 
   '@tanstack/electric-db-collection@0.2.13(typescript@5.9.3)':
     dependencies:
-      '@electric-sql/client': 1.2.0
+      '@electric-sql/client': 1.2.2
       '@standard-schema/spec': 1.0.0
       '@tanstack/db': 0.5.12(typescript@5.9.3)
       '@tanstack/store': 0.8.0
