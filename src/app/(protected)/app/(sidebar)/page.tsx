@@ -1,18 +1,26 @@
-import { Suspense } from "react";
-
-import { SidebarLayout } from "@/components/layouts/sidebar/sidebar-layout";
-import { PageHeader } from "@/components/layouts/sidebar/page-header";
-import { InboxPanel } from "@/features/inbox/components/inbox-panel";
-import { InboxDetail } from "@/features/inbox/components/inbox-detail";
 import LayoutLoader from "@/components/layouts/loader";
+import { PageHeader } from "@/components/layouts/sidebar/page-header";
+import { InboxDetail } from "@/features/inbox/components/inbox-detail";
 import { auth } from "@/lib/auth/config";
-import { redirect } from "next/navigation";
-import { headers } from "next/headers";
 import { db } from "@/lib/db";
 import { businesses, facebookPages } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
+import { headers } from "next/headers";
+import { redirect } from "next/navigation";
+import { Suspense } from "react";
 
-export default async function InboxPage() {
+export default function InboxPage() {
+  return (
+    <>
+      <PageHeader breadcrumbs={[{ label: "Inbox" }]} />
+      <Suspense fallback={<LayoutLoader />}>
+        <InboxContent />
+      </Suspense>
+    </>
+  );
+}
+
+async function InboxContent() {
   const session = await auth.api.getSession({
     headers: await headers(),
   });
@@ -45,10 +53,5 @@ export default async function InboxPage() {
     redirect("/app/onboarding");
   }
 
-  return (
-    <SidebarLayout panel={<InboxPanel />}>
-      <PageHeader breadcrumbs={[{ label: "Inbox" }]} />
-      <InboxDetail />
-    </SidebarLayout>
-  );
+  return <InboxDetail />;
 }
